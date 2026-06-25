@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Infoscreen</title>
+
   <style>
     html, body {
       margin: 0;
@@ -12,6 +13,7 @@
       height: 100%;
       background: #000;
       overflow: hidden;
+      font-family: Arial, sans-serif;
     }
 
     iframe {
@@ -19,10 +21,224 @@
       height: 100%;
       border: none;
       display: block;
+      background: #000;
+    }
+
+    #offlineFallback {
+      position: fixed;
+      inset: 0;
+      z-index: 999999;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      background: radial-gradient(circle at center, #10235a 0%, #050b1f 70%, #020715 100%);
+      color: #00eaff;
+    }
+
+    .offline-card {
+      width: 760px;
+      max-width: 80vw;
+      padding: 48px 64px 42px;
+      border: 1px solid rgba(0, 234, 255, 0.55);
+      border-radius: 18px;
+      background: rgba(3, 12, 34, 0.82);
+      box-shadow: 0 0 55px rgba(0, 234, 255, 0.35);
+    }
+
+    .offline-logo {
+      width: 90px;
+      height: 90px;
+      object-fit: contain;
+      margin-bottom: 32px;
+      filter: drop-shadow(0 0 12px rgba(0, 234, 255, 0.45));
+    }
+
+    .offline-title {
+      font-size: 34px;
+      line-height: 1.25;
+      font-weight: 900;
+      color: #00eaff;
+      margin-bottom: 18px;
+    }
+
+    .offline-subtitle {
+      font-size: 23px;
+      font-weight: 800;
+      color: #ffffff;
+      margin-bottom: 22px;
+    }
+
+    .offline-small {
+      font-size: 15px;
+      color: #cfefff;
+      opacity: 0.9;
+      margin-bottom: 26px;
+    }
+
+    .offline-last {
+      font-size: 13px;
+      color: #9fd9e8;
+      opacity: 0.85;
+      margin-top: 18px;
+    }
+
+    .spinner {
+      width: 38px;
+      height: 38px;
+      margin: 0 auto;
+      border: 4px solid rgba(255,255,255,0.25);
+      border-top: 4px solid #00eaff;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
     }
   </style>
 </head>
+
 <body>
-  <iframe src="https://script.google.com/macros/s/AKfycbyz3vOu_V_gPCZTkEpWZor5UjbqDFvnbWVW0OhXY8_Mz1w8LwsHhCHRD1gfeCv7cwmAxg/exec"></iframe>
+
+  <iframe
+    id="infoscreenFrame"
+    src="https://script.google.com/macros/s/AKfycbyz3vOu_V_gPCZTkEpWZor5UjbqDFvnbWVW0OhXY8_Mz1w8LwsHhCHRD1gfeCv7cwmAxg/exec">
+  </iframe>
+
+  <div id="offlineFallback">
+    <div class="offline-card">
+      <img
+        class="offline-logo"
+        src="https://drive.google.com/thumbnail?id=11OnUfELMcLBj_VPiqKXqu1nIAZHXg_Pb&sz=w400"
+        alt="Feuerwehr St. Pölten Stadt">
+
+      <div class="offline-title">
+        Derzeit gibt es<br>
+        Verbindungsschwierigkeiten.
+      </div>
+
+      <div class="offline-subtitle">
+        Wir arbeiten bereits an der Problembehebung.
+      </div>
+
+      <div class="offline-small">
+        Die Anzeige wird automatisch wiederhergestellt, sobald die Verbindung verfügbar ist.
+      </div>
+
+      <div class="spinner"></div>
+
+      <div class="offline-last" id="lastOnlineText">
+        Letzte erfolgreiche Verbindung: wird geprüft …
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const APP_URL = "https://script.google.com/macros/s/AKfycbyz3vOu_V_gPCZTkEpWZor5UjbqDFvnbWVW0OhXY8_Mz1w8LwsHhCHRD1gfeCv7cwmAxg/exec";
+
+    const frame = document.getElementById("infoscreenFrame");
+    const fallback = document.getElementById("offlineFallback");
+    const lastOnlineText = document.getElementById("lastOnlineText");
+
+    let offlineTestMode = false;
+    let lastOnline = new Date();
+
+    function formatTime(date) {
+      return date.toLocaleString("de-AT", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit"
+      }) + " Uhr";
+    }
+
+    function updateLastOnlineText() {
+      lastOnlineText.textContent =
+        "Letzte erfolgreiche Verbindung: " + formatTime(lastOnline);
+    }
+
+    function showOffline() {
+      fallback.style.display = "flex";
+      updateLastOnlineText();
+    }
+
+    function hideOffline() {
+      if (offlineTestMode) return;
+      fallback.style.display = "none";
+      lastOnline = new Date();
+      updateLastOnlineText();
+    }
+
+    function reloadFrame() {
+      if (offlineTestMode) return;
+      frame.src = APP_URL + "?t=" + Date.now();
+    }
+
+    frame.addEventListener("load", function () {
+      setTimeout(hideOffline, 1200);
+    });
+
+    window.addEventListener("offline", function () {
+      showOffline();
+    });
+
+    window.addEventListener("online", function () {
+      reloadFrame();
+      setTimeout(hideOffline, 3000);
+    });
+
+    setInterval(function () {
+      if (!navigator.onLine) {
+        showOffline();
+      }
+    }, 5000);
+
+    setInterval(function () {
+      if (navigator.onLine && !offlineTestMode) {
+        reloadFrame();
+      }
+    }, 60000);
+
+    setTimeout(function () {
+      if (!navigator.onLine) {
+        showOffline();
+      }
+    }, 8000);
+
+    // Testmöglichkeit:
+    // Deine GitHub-URL mit ?offline=1 öffnen
+    // Beispiel:
+    // https://dein-github-link/?offline=1
+    const params = new URLSearchParams(window.location.search);
+
+    if (
+      params.has("offline") ||
+      params.has("testoffline") ||
+      params.get("test") === "offline"
+    ) {
+      offlineTestMode = true;
+      showOffline();
+    }
+
+    // Am PC zusätzlich: STRG + ALT + O
+    document.addEventListener("keydown", function (e) {
+      if (e.ctrlKey && e.altKey && e.key.toLowerCase() === "o") {
+        offlineTestMode = !offlineTestMode;
+
+        if (offlineTestMode) {
+          showOffline();
+        } else {
+          offlineTestMode = false;
+          hideOffline();
+        }
+      }
+    });
+
+    updateLastOnlineText();
+  </script>
+
 </body>
 </html>
